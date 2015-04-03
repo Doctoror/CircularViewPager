@@ -2,9 +2,6 @@
 
 CircularViewPager allows infinite circular page scrolling by creating fake first and last pages and calling setCurrentItem() on extreme pages.
 
-Min API level 7 [![Maven Central](https://maven-badges.herokuapp.com/maven-central/com.github.doctoror.circularviewpager/library/badge.svg?style=flat)]
-
-
 ##License
 
 ```
