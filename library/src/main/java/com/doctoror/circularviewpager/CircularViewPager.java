@@ -23,6 +23,8 @@ import android.support.v4.view.PagerAdapter;
 import android.support.v4.view.ViewPager;
 import android.util.AttributeSet;
 
+import java.util.ArrayList;
+
 /**
  * {@link ViewPager} that uses {@link CircularOnPageChangeListener} and skips first fake page
  * whenever the adapter is set.
@@ -31,6 +33,8 @@ public class CircularViewPager extends ViewPager {
 
     private final CircularOnPageChangeListener mInternalPageChangeListener
             = new CircularOnPageChangeListener(this);
+
+    private final ArrayList<OnPageChangeListener> mExternalPageChangeListeners = new ArrayList<>();
 
     ViewPager.OnPageChangeListener mExternalPageChangeListener;
 
@@ -48,13 +52,23 @@ public class CircularViewPager extends ViewPager {
     }
 
     @Override
+    public void addOnPageChangeListener(final OnPageChangeListener listener) {
+        mExternalPageChangeListeners.add(listener);
+    }
+
+    @Override
+    public void removeOnPageChangeListener(final OnPageChangeListener listener) {
+        mExternalPageChangeListeners.remove(listener);
+    }
+
+    @Override
     public void setAdapter(@Nullable final PagerAdapter adapter) {
-        super.setOnPageChangeListener(null);
+        super.removeOnPageChangeListener(mInternalPageChangeListener);
         super.setAdapter(adapter);
         if (adapter != null && adapter.getCount() > 1) {
             setCurrentItemNoOffset(1, false);
         }
-        super.setOnPageChangeListener(mInternalPageChangeListener);
+        super.addOnPageChangeListener(mInternalPageChangeListener);
     }
 
     @Override
@@ -75,6 +89,40 @@ public class CircularViewPager extends ViewPager {
         return super.getCurrentItem();
     }
 
+    void notifyPageScrolled(final int position, final float positionOffset,
+            final int positionOffsetPixels) {
+        if (mExternalPageChangeListener != null) {
+            mExternalPageChangeListener.onPageScrolled(position, positionOffset, positionOffsetPixels);
+        }
+        final int size = mExternalPageChangeListeners.size();
+        for (int i = 0; i < size; i++) {
+            final OnPageChangeListener listener = mExternalPageChangeListeners.get(i);
+            listener.onPageScrolled(position, positionOffset, positionOffsetPixels);
+        }
+    }
+
+    void notifyPageSelected(final int position) {
+        if (mExternalPageChangeListener != null) {
+            mExternalPageChangeListener.onPageSelected(position);
+        }
+        final int size = mExternalPageChangeListeners.size();
+        for (int i = 0; i < size; i++) {
+            final OnPageChangeListener listener = mExternalPageChangeListeners.get(i);
+            listener.onPageSelected(position);
+        }
+    }
+
+    void notifyPageScrollStateChanged(final int state) {
+        if (mExternalPageChangeListener != null) {
+            mExternalPageChangeListener.onPageScrollStateChanged(state);
+        }
+        final int size = mExternalPageChangeListeners.size();
+        for (int i = 0; i < size; i++) {
+            final OnPageChangeListener listener = mExternalPageChangeListeners.get(i);
+            listener.onPageScrollStateChanged(state);
+        }
+    }
+
     /**
      * Moves to a real page if first or last fake page chosen.
      */
@@ -92,19 +140,15 @@ public class CircularViewPager extends ViewPager {
         @Override
         public void onPageScrolled(final int position, final float positionOffset,
                 final int positionOffsetPixels) {
-            if (mExternalPageChangeListener != null) {
-                mExternalPageChangeListener
-                        .onPageScrolled(position - 1, positionOffset, positionOffsetPixels);
-            }
+            notifyPageScrolled(position - 1, positionOffset, positionOffsetPixels);
         }
 
         @Override
         public void onPageSelected(final int position) {
             mPositionChanged = true;
             mLastPosition = position;
-            if (mExternalPageChangeListener != null && position > 0
-                    && position < getAdapter().getCount() - 1) {
-                mExternalPageChangeListener.onPageSelected(position - 1);
+            if (position > 0 && position < getAdapter().getCount() - 1) {
+                notifyPageSelected(position - 1);
             }
         }
 
@@ -126,9 +170,7 @@ public class CircularViewPager extends ViewPager {
                 }
                 mPositionChanged = false;
             }
-            if (mExternalPageChangeListener != null) {
-                mExternalPageChangeListener.onPageScrollStateChanged(state);
-            }
+            notifyPageScrollStateChanged(state);
         }
     }
 }
